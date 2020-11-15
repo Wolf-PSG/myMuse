@@ -5,6 +5,7 @@ module.exports = gql`
         username: String!
         email: String!
         createdAt: String!
+        imageUrl: String!
         friends: [String]!
         friendRequests: [String]!
         token: String
@@ -20,6 +21,7 @@ module.exports = gql`
     type Query {
         getUsers: [User]!
         login(username: String!, password: String!): User!
+        filterUsers(filter: String!): [User!]
         getMessages(from: String!): [Message]!
     }
     type Mutation {
