@@ -8,13 +8,15 @@ const server = new ApolloServer({
     typeDefs,
     resolvers,
     context: contextMiddleware,
+    subscriptions: { path: '/' },
 });
-
-server.listen().then(({ url }) => {
+//TODO rework subs -- too complicated and over worked
+server.listen().then(({ url, subscriptionsUrl }) => {
     console.log(`Server ready at ${url}`);
+    // console.log(`Subs ready at ${sub}`);
+    console.log(`Sub server at ${subscriptionsUrl}`);
     sequelize
         .authenticate()
         .then(() => console.log('connected to db'))
         .catch((err) => console.log(err));
 });
-

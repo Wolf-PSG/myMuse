@@ -22,6 +22,7 @@ module.exports = gql`
         getUsers: [User]!
         login(username: String!, password: String!): User!
         filterUsers(filter: String!): [User!]
+        getSingleUser: User!
         getMessages(from: String!): [Message]!
     }
     type Mutation {
@@ -37,5 +38,9 @@ module.exports = gql`
         friendRequest(to: String!): User!
 
         acceptFriend(friendToAdd: String!): User!
+    }
+
+    type Subscription {
+        newMessage: Message!
     }
 `;

@@ -17,13 +17,30 @@ const resolvers = {
                 throw err;
             }
         },
+        getSingleUser: async (_, __, { user }) => {
+            try {
+                if (!user) throw new AuthenticationError('Unauthenticated!');
+                const foundUser = await User.findOne({
+                    where: { username: user.username },
+                });
+                if (!Array.isArray(foundUser.friends)) {
+                    foundUser.friends = [];
+                }
+                if (!Array.isArray(foundUser.friendRequests)) {
+                    foundUser.friendRequests = [];
+                }
+                return foundUser;
+            } catch (err) {
+                throw err;
+            }
+        },
         filterUsers: async (_, { filter }, { user }) => {
             try {
                 if (!user) throw new AuthenticationError('Unauthenticated!');
-                console.log(filter);
+
                 const users = await User.findAll({
                     limit: 10,
-                    where: { username: { [Op.like]: `%${filter}%` } },
+                    where: { username: { [Op.iLike]: `%${filter}%` } },
                 });
                 return users;
             } catch (err) {
@@ -75,7 +92,6 @@ const resolvers = {
                     token,
                 };
             } catch (err) {
-                console.log(err);
                 throw err;
             }
         },
@@ -110,7 +126,6 @@ const resolvers = {
 
                 return newUser;
             } catch (err) {
-                console.log(err);
                 if (err.name === 'SequelizeUniqueConstraintError') {
                     err.errors.forEach(
                         (e) => (errors[e.path] = `${e.path} is already taken`)
@@ -126,6 +141,15 @@ const resolvers = {
             try {
                 if (!user) throw new AuthenticationError('Unauthenticated');
 
+                if (user.username === to) {
+                    throw new UserInputError(
+                        'You cannot add yourself as a friend'
+                    );
+                }
+                const requestingUser = await User.findOne({
+                    where: { username: user.username },
+                });
+
                 const requestedFriend = await User.findOne({
                     where: { username: to },
                 });
@@ -134,11 +158,23 @@ const resolvers = {
                     throw new UserInputError('User not found');
 
                 const { friendRequests } = requestedFriend;
+                const { friends } = requestingUser;
 
+                if (Array.isArray(friends)) {
+                    if (friends.length) {
+                        const existingFriend = friends.some((el) => el === to);
+
+                        if (existingFriend)
+                            throw new UserInputError(
+                                'This user is already your friend'
+                            );
+                    }
+                    throw new Error('Not an Array - server Error');
+                }
                 if (Array.isArray(friendRequests)) {
                     if (friendRequests.length) {
                         const existingRequest = friendRequests.some(
-                            (el) => el === user
+                            (el) => el === user.username
                         );
 
                         if (existingRequest)
@@ -146,7 +182,6 @@ const resolvers = {
                                 "You've already sent a friend request to this user "
                             );
                     }
-                    throw new Error('Not an Array');
                 }
 
                 User.update(
@@ -165,24 +200,31 @@ const resolvers = {
                 throw err;
             }
         },
+
         acceptFriend: async (parent, { friendToAdd }, { user }) => {
             try {
                 if (!user) throw new AuthenticationError('Unauthenticated');
-                const { friends, friendRequests } = user;
-                console.log(user.friendRequests);
 
-                if (Array.isArray(friendRequests) || Array.isArray(friends)) {
+                const acceptingUser = await User.findOne({
+                    where: { username: user.username },
+                });
+
+                const { friends, friendRequests } = acceptingUser;
+                if (Array.isArray(friends)) {
                     if (friends.length) {
                         if (friends.some((el) => el == friendToAdd))
                             throw new UserInputError(
                                 'This user is already your friend'
                             );
-                        if (!friendRequests.some((el) => el == friendToAdd))
-                            throw new UserInputError(
-                                'This user is has not requested friendship'
-                            );
                     }
-                    throw new Error('Not an Array');
+                }
+
+                if (Array.isArray(friendRequests)) {
+                    if (!friendRequests.some((el) => el == friendToAdd)) {
+                        throw new UserInputError(
+                            'This user has not requested friendship'
+                        );
+                    }
                 }
 
                 User.update(
